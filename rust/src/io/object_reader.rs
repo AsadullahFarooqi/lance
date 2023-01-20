@@ -163,4 +163,87 @@ impl<'a> ObjectReader<'a> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use object_store::path::Path;
+    use crate::io::ObjectStore;
+    use std::env;
+    use prost::Message;
+    // use M: Message + Default + 'static,
+    // trait M: Message + Default {}
+
+    struct TestCase {
+        u: String,
+        p: String,
+    }
+
+    #[test]
+    fn success_new_obj_creator () {
+        
+        env::set_var("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
+        env::set_var("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");
+        env::set_var("AWS_DEFAULT_REGION", "us-west-2");
+
+        let mut t_cases: Vec<TestCase> = Vec::new();
+        t_cases.push(TestCase {
+            u: "s3://eto-public/datasets/oxford_pet/oxford_pet.lance".to_string(),
+            p: "oxford_pet.lance".to_string(),
+        });
+
+        t_cases.push(TestCase {
+            u: "file:///home/asd/work/rust/sample.lance".to_string(),
+            p: "/home/asd/work/rust/sample.lance".to_string(),
+        });
+
+        t_cases.push(TestCase {
+            u: "some/random/uri".to_string(),
+            p: "some/random/path".to_string(),
+        });
+
+        for k in &t_cases {
+            // create uri param
+            let obj = match ObjectStore::new(&k.u) {
+                Ok(obj) => obj,
+                Err(err) => panic!("failed to create an objectStore object {:?}", err),
+            };
+
+            // create path param
+            let path = match Path::parse(&k.p) {
+                Ok(path) => path,
+                Err(error) => panic!("failed to parse the path {:?}", error),
+            };
+
+            // call the new func
+            let got = ObjectReader::new(&obj, path, 32);
+            println!("{:?}", got);
+            assert!(matches!(got, ObjectStore));
+        }
+    }
+
+    #[test]
+    fn read_message() {
+        // create uri param
+        let obj = match ObjectStore::new("file://") {
+            Ok(obj) => obj,
+            Err(err) => panic!("failed to create an objectStore object {:?}", err),
+        };
+
+        // create path param
+        let path = match Path::parse("/home/asd/work/rust/sample.lance") {
+            Ok(path) => path,
+            Err(error) => panic!("failed to parse the path {:?}", error),
+        };
+
+        // call the new func
+        let mut obj_store = match ObjectReader::new(&obj, path, 32) {
+            Ok(path) => path,
+            Err(error) => panic!("failed to create ObjectReader {:?}", error),
+        };
+
+
+        // let mut got = ObjectReader::read_message(&mut objStore, 64);
+        let pos: usize = 64;
+        let msg = &mut obj_store.read_message::<u64>(pos);
+
+    }
+}
